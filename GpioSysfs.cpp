@@ -159,7 +159,7 @@ int GpioSysfs::get_value()
 	fd = open(setValStr.c_str(), O_RDONLY | O_SYNC);
 	if (fd < 0)
 	{
-		std::cerr << "could not open " << setValStr;
+		std::cerr << "could not open " << setValStr << std::endl;
 	}
 
 	retval = read(fd, &val, 1);
@@ -171,6 +171,13 @@ int GpioSysfs::get_value()
 	{
 		std::cerr << "could not read " << setValStr << std::endl;
 	}
+
+	retval = close(fd);
+	if (retval < 0)
+	{
+		std::cerr << "could not close " << setValStr << std::endl;
+	}
+
 	return retval;
 }
 
