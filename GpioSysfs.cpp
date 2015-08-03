@@ -156,7 +156,7 @@ int GpioSysfs::get_value()
 	std::string setValStr = "/sys/class/gpio/gpio" + std::to_string(gpio_num)
 			+ "/value";
 
-	fd = open(setValStr.c_str(), O_WRONLY | O_SYNC);
+	fd = open(setValStr.c_str(), O_RDONLY | O_SYNC);
 	if (fd < 0)
 	{
 		std::cerr << "could not open " << setValStr;
