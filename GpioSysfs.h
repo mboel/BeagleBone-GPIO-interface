@@ -48,6 +48,7 @@ public:
 	int get_value();
 	int set_value(bool value);
 	int set_edge(std::string edge);
+	int poll_pin(int time);
 };
 
 #endif /* GPIOSYSFS_H_ */

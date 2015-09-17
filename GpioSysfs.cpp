@@ -5,33 +5,35 @@
  *      Author: Martin Boel
  */
 /* ============================================
-This code code is placed under the MIT license
-Copyright (c) 2015 Martin Boel
+ This code code is placed under the MIT license
+ Copyright (c) 2015 Martin Boel
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-===============================================
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ ===============================================
+ */
 
 #include "GpioSysfs.h"
 #include <unistd.h>
 #include <iostream>
 #include <fcntl.h>
+#include <poll.h>
+#include <string.h>
 
 /** Export a GPIO pin
  *	@param gpio_num		The pin number to export
@@ -248,9 +250,11 @@ int GpioSysfs::set_edge(std::string edge)
 		std::cerr << "could not open " << edge_str << std::endl;
 	}
 
-	if (edge.compare("none") && edge.compare("rising") && edge.compare("falling"))
+	if (edge.compare("none") && edge.compare("rising")
+			&& edge.compare("falling"))
 	{
-		std::cerr << "Invalid edge value. Should be \"none\", \"rising\" or \"falling\". \n";
+		std::cerr
+				<< "Invalid edge value. Should be \"none\", \"rising\" or \"falling\". \n";
 	}
 
 	retval = write(fd, edge.c_str(), edge.length());
@@ -267,3 +271,41 @@ int GpioSysfs::set_edge(std::string edge)
 
 	return retval;
 }
+
+int GpioSysfs::poll_pin(int time)
+{
+	static struct pollfd p_fd;
+	int fd;
+	int pol_val = -1;
+
+	std::string setValStr = "/sys/class/gpio/gpio" + std::to_string(gpio_num)
+			+ "/value";
+
+	fd = open(setValStr.c_str(), O_RDONLY | O_SYNC);
+	if (fd < 0)
+	{
+		std::cerr << "could not open " << setValStr << std::endl;
+	}
+
+	char buf[64];
+	for (int i = 0; i < 64; i++)
+		buf[i] = 0;
+
+	lseek(fd, 0, SEEK_SET); /* consume any prior interrupt */
+	read(fd, buf, sizeof buf);
+
+	memset(&p_fd, 0, sizeof(p_fd));
+	p_fd.fd = fd;
+	p_fd.events = POLLPRI;
+
+	lseek(p_fd.fd, 0, SEEK_SET); /* consume any prior interrupt */
+	read(p_fd.fd, buf, sizeof buf);
+
+	memset(&p_fd, 0, sizeof(p_fd));
+	p_fd.fd = fd;
+	p_fd.events = POLLPRI;
+
+	pol_val = poll(&p_fd, 1, time);
+	return p_fd.revents;
+}
+
